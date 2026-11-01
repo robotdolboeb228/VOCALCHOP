@@ -1,0 +1,35 @@
+name: Build (macOS)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S vocalchop -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Sign (ad-hoc) and package
+        run: |
+          mkdir -p dist
+          VST3=$(find build -name "Vocal Chop.vst3" -maxdepth 4 | head -1)
+          AU=$(find build -name "Vocal Chop.component" -maxdepth 4 | head -1)
+          echo "VST3=$VST3"
+          echo "AU=$AU"
+          codesign --force --deep -s - "$VST3"
+          codesign --force --deep -s - "$AU"
+          ditto "$VST3" "dist/Vocal Chop.vst3"
+          ditto "$AU" "dist/Vocal Chop.component"
+          cd dist && zip -r -y ../VocalChop-macOS.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VocalChop-macOS
+          path: VocalChop-macOS.zip
